@@ -1,13 +1,10 @@
 import React from 'react';
-import { useVersionStore } from '@/store';
 
 interface AIToolbarProps {
   onAction: (action: string) => void;
 }
 
 export function AIToolbar({ onAction }: AIToolbarProps) {
-  const { aiConfig } = useVersionStore();
-
   return (
     <div className="ai-toolbar">
       <button

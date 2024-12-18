@@ -2,24 +2,17 @@
 export interface TextRange {
   start: number;
   end: number;
+  text: string;
 }
 
 export interface EditorHistory {
-  undoStack: string[];
-  redoStack: string[];
+  undoStack: any[];
+  redoStack: any[];
 }
 
 export interface EditorState {
   content: string;
   history: EditorHistory;
-  selection?: TextRange;
-  settings: {
-    theme: string;
-    fontSize: number;
-    lineHeight: number;
-    tabSize: number;
-  };
-  tags: string[];
   undo: () => void;
   redo: () => void;
   pushToHistory: (content: string) => void;
