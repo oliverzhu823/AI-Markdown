@@ -18,12 +18,6 @@ interface SmartSuggestionsProps {
   editorRef: React.RefObject<HTMLTextAreaElement>;
 }
 
-export interface TextRange {
-  start: number;
-  end: number;
-  text: string;
-}
-
 export default function SmartSuggestions({ editorRef }: SmartSuggestionsProps) {
   const [suggestions, setSuggestions] = useState<SmartEditSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,7 +76,7 @@ export default function SmartSuggestions({ editorRef }: SmartSuggestionsProps) {
 
     setLoading(true);
     try {
-      const range: TextRange = {
+      const range = {
         start: cursorPos - currentLine.length,
         end: cursorPos,
         text: currentLine,

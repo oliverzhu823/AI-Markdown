@@ -1,25 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { EditorState, Version, Settings, AIConfig, EditorHistory } from '@/types';
+import type { EditorState, Version, Settings, AIConfig } from '@/types';
 
-const MAX_HISTORY_LENGTH = 100;
-
-const defaultSettings: Settings = {
+const DEFAULT_SETTINGS: Settings = {
   isDarkMode: false,
   autoSave: true,
   autoSaveInterval: 30000,
 };
 
-const defaultAIConfig: AIConfig = {
+const DEFAULT_AI_CONFIG: AIConfig = {
   apiKey: '',
-  model: 'deepseek',
+  model: 'gpt-3.5-turbo',
   temperature: 0.7,
-};
-
-const defaultHistory: EditorHistory = {
-  undoStack: [],
-  redoStack: [],
 };
 
 export const useVersionStore = create<EditorState>()(
@@ -28,167 +21,131 @@ export const useVersionStore = create<EditorState>()(
       versions: [],
       currentVersion: null,
       selectedTags: [],
-      settings: defaultSettings,
-      aiConfig: defaultAIConfig,
-      history: defaultHistory,
+      settings: DEFAULT_SETTINGS,
+      aiConfig: DEFAULT_AI_CONFIG,
+      history: {
+        undoStack: [],
+        redoStack: [],
+      },
       content: '',
 
       loadVersions: () => {
-        const versions = get().versions;
-        if (versions.length > 0) {
-          const version = versions[0];
-          set({ 
-            currentVersion: version,
-            content: version.content
-          });
+        const versions = localStorage.getItem('versions');
+        if (versions) {
+          set({ versions: JSON.parse(versions) });
         }
       },
 
       saveVersion: (content?: string) => {
-        const currentContent = content || get().content || '';
-        const version: Version = {
+        const state = get();
+        const newVersion: Version = {
           id: uuidv4(),
-          content: currentContent,
+          content: content || state.content,
           timestamp: Date.now(),
-          tags: [],
+          tags: state.selectedTags,
         };
-        set(state => ({
-          versions: [version, ...state.versions],
-          currentVersion: version,
-          content: currentContent
+        set((state) => ({
+          versions: [...state.versions, newVersion],
+          currentVersion: newVersion,
         }));
       },
 
       updateContent: (content: string) => {
-        const state = get();
-        const oldContent = state.content;
-        
-        // 如果内容没有变化，不需要更新
-        if (oldContent === content) return;
+        set((state) => {
+          // 保存当前内容到历史记录
+          const undoStack = [...state.history.undoStack, state.content];
+          return {
+            content,
+            history: {
+              undoStack,
+              redoStack: [],
+            },
+          };
+        });
+      },
 
-        // 更新内容
-        set(state => ({
-          content,
-          currentVersion: state.currentVersion
-            ? { ...state.currentVersion, content }
-            : { id: uuidv4(), content, timestamp: Date.now(), tags: [] },
+      importVersions: (versions: Version[]) => {
+        set({ versions });
+      },
+
+      deleteVersion: (id: string) => {
+        set((state) => ({
+          versions: state.versions.filter((v) => v.id !== id),
         }));
+      },
 
-        // 将旧内容推入历史记录
-        if (oldContent !== undefined) {
-          get().pushToHistory(oldContent);
+      loadVersion: (id: string) => {
+        const version = get().versions.find((v) => v.id === id);
+        if (version) {
+          set({ currentVersion: version, content: version.content });
         }
       },
 
-      pushToHistory: (content: string) => {
-        set(state => ({
-          history: {
-            undoStack: [...state.history.undoStack, content].slice(-MAX_HISTORY_LENGTH),
-            redoStack: [], // 清空重做栈
-          }
+      updateSettings: (settings: Partial<Settings>) => {
+        set((state) => ({
+          settings: { ...state.settings, ...settings },
+        }));
+      },
+
+      updateAIConfig: (config: Partial<AIConfig>) => {
+        set((state) => ({
+          aiConfig: { ...state.aiConfig, ...config },
+        }));
+      },
+
+      addTag: (tag: string) => {
+        set((state) => ({
+          selectedTags: [...state.selectedTags, tag],
+        }));
+      },
+
+      removeTag: (tag: string) => {
+        set((state) => ({
+          selectedTags: state.selectedTags.filter((t) => t !== tag),
         }));
       },
 
       undo: () => {
-        set(state => {
-          const { content, history } = state;
-          if (history.undoStack.length === 0) return state;
-
-          const previousContent = history.undoStack[history.undoStack.length - 1];
-          const newUndoStack = history.undoStack.slice(0, -1);
-
+        set((state) => {
+          if (state.history.undoStack.length === 0) return state;
+          const undoStack = [...state.history.undoStack];
+          const content = undoStack.pop() || '';
           return {
-            content: previousContent,
-            currentVersion: state.currentVersion
-              ? { ...state.currentVersion, content: previousContent }
-              : null,
+            content,
             history: {
-              undoStack: newUndoStack,
-              redoStack: [...history.redoStack, content],
+              undoStack,
+              redoStack: [...state.history.redoStack, state.content],
             },
           };
         });
       },
 
       redo: () => {
-        set(state => {
-          const { content, history } = state;
-          if (history.redoStack.length === 0) return state;
-
-          const nextContent = history.redoStack[history.redoStack.length - 1];
-          const newRedoStack = history.redoStack.slice(0, -1);
-
+        set((state) => {
+          if (state.history.redoStack.length === 0) return state;
+          const redoStack = [...state.history.redoStack];
+          const content = redoStack.pop() || '';
           return {
-            content: nextContent,
-            currentVersion: state.currentVersion
-              ? { ...state.currentVersion, content: nextContent }
-              : null,
+            content,
             history: {
-              undoStack: [...history.undoStack, content],
-              redoStack: newRedoStack,
+              undoStack: [...state.history.undoStack, state.content],
+              redoStack,
             },
           };
         });
       },
 
       clearHistory: () => {
-        set({ history: defaultHistory });
-      },
-
-      importVersions: (versions: Version[]) => {
-        const firstVersion = versions[0] || null;
-        set({ 
-          versions, 
-          currentVersion: firstVersion,
-          content: firstVersion?.content || '',
-          history: defaultHistory
+        set({
+          history: {
+            undoStack: [],
+            redoStack: [],
+          },
         });
-      },
-
-      deleteVersion: (id: string) => {
-        set(state => ({
-          versions: state.versions.filter(v => v.id !== id),
-          currentVersion: state.currentVersion?.id === id ? null : state.currentVersion,
-          content: state.currentVersion?.id === id ? '' : state.content
-        }));
-      },
-
-      loadVersion: (id: string) => {
-        set(state => {
-          const version = state.versions.find(v => v.id === id);
-          return {
-            currentVersion: version || null,
-            content: version?.content || ''
-          };
-        });
-      },
-
-      updateSettings: (settings: Partial<Settings>) => {
-        set(state => ({
-          settings: { ...state.settings, ...settings }
-        }));
-      },
-
-      updateAIConfig: (config: Partial<AIConfig>) => {
-        set(state => ({
-          aiConfig: { ...state.aiConfig, ...config }
-        }));
-      },
-
-      addTag: (tag: string) => {
-        set(state => ({
-          selectedTags: [...state.selectedTags, tag]
-        }));
-      },
-
-      removeTag: (tag: string) => {
-        set(state => ({
-          selectedTags: state.selectedTags.filter(t => t !== tag)
-        }));
       },
     }),
     {
-      name: 'ai-markdown-store',
+      name: 'editor-storage',
     }
   )
 );
