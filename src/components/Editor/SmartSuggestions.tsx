@@ -7,18 +7,21 @@ import {
   getEnhancementSuggestions,
   shouldTriggerSuggestions,
 } from '@/utils/smartEdit';
-import { TextRange } from '@/utils/editorUtils';
 import {
   MdLightbulbOutline,
   MdSpellcheck,
   MdAutoFixHigh,
-  MdClose,
-  MdCheck,
 } from 'react-icons/md';
 import clsx from 'clsx';
 
 interface SmartSuggestionsProps {
   editorRef: React.RefObject<HTMLTextAreaElement>;
+}
+
+export interface TextRange {
+  start: number;
+  end: number;
+  text: string;
 }
 
 export default function SmartSuggestions({ editorRef }: SmartSuggestionsProps) {
@@ -52,92 +55,48 @@ export default function SmartSuggestions({ editorRef }: SmartSuggestionsProps) {
         text.substring(suggestion.range.end);
       updateContent(newText);
       editor.setSelectionRange(
-        suggestion.range.start,
+        suggestion.range.start + suggestion.text.length,
         suggestion.range.start + suggestion.text.length
       );
     } else {
-      const cursorPosition = editor.selectionStart;
-      const newText =
-        text.substring(0, cursorPosition) +
-        suggestion.text +
-        text.substring(cursorPosition);
+      const cursorPos = editor.selectionStart;
+      const newText = text.substring(0, cursorPos) + suggestion.text + text.substring(cursorPos);
       updateContent(newText);
       editor.setSelectionRange(
-        cursorPosition + suggestion.text.length,
-        cursorPosition + suggestion.text.length
+        cursorPos + suggestion.text.length,
+        cursorPos + suggestion.text.length
       );
     }
-
     setSuggestions([]);
   }, [editorRef, updateContent]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (suggestions.length === 0) return;
-
-      if (e.key === 'Tab' || (e.ctrlKey && e.key === 'Space')) {
-        e.preventDefault();
-        if (selectedIndex >= 0) {
-          applySuggestion(suggestions[selectedIndex]);
-        }
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev <= 0 ? suggestions.length - 1 : prev - 1
-        );
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev >= suggestions.length - 1 ? 0 : prev + 1
-        );
-      } else if (e.key === 'Escape') {
-        setSuggestions([]);
-      }
-    },
-    [suggestions, selectedIndex, applySuggestion]
-  );
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  const handleEditorChange = useCallback(async () => {
+  const handleSuggestions = useCallback(async () => {
     const editor = editorRef.current;
     if (!editor || loading) return;
 
     const text = editor.value;
-    const cursorPosition = editor.selectionStart;
-    const lastTypedChar = text[cursorPosition - 1] || '';
+    const cursorPos = editor.selectionStart;
+    const currentLine = text.substring(0, cursorPos).split('\n').pop() || '';
 
-    if (!shouldTriggerSuggestions(text, cursorPosition, lastTypedChar)) {
-      return;
-    }
+    if (!shouldTriggerSuggestions(currentLine)) return;
 
     setLoading(true);
     try {
-      const allSuggestions: SmartEditSuggestion[] = [];
-
-      // 获取智能补全建议
-      const completions = await getSmartCompletions(text, cursorPosition);
-      allSuggestions.push(...completions);
-
-      // 获取语法检查建议
-      const selection: TextRange = {
-        start: Math.max(0, cursorPosition - 100),
-        end: cursorPosition,
+      const range: TextRange = {
+        start: cursorPos - currentLine.length,
+        end: cursorPos,
+        text: currentLine,
       };
-      const grammar = await getGrammarSuggestions(text, selection);
-      allSuggestions.push(...grammar);
 
-      // 获取内容增强建议
-      const enhancements = await getEnhancementSuggestions(text, selection);
-      allSuggestions.push(...enhancements);
+      const [completions, grammar, enhancements] = await Promise.all([
+        getSmartCompletions(text, range),
+        getGrammarSuggestions(text, range),
+        getEnhancementSuggestions(text, range),
+      ]);
 
-      // 按置信度排序
-      allSuggestions.sort((a, b) => b.confidence - a.confidence);
-      setSuggestions(allSuggestions.slice(0, 5));
-      setSelectedIndex(0);
+      setSuggestions([...completions, ...grammar, ...enhancements]);
+    } catch (error) {
+      console.error('获取智能建议失败:', error);
     } finally {
       setLoading(false);
     }
@@ -147,53 +106,40 @@ export default function SmartSuggestions({ editorRef }: SmartSuggestionsProps) {
     const editor = editorRef.current;
     if (!editor) return;
 
-    const debounceTimeout = setTimeout(handleEditorChange, 500);
-    return () => clearTimeout(debounceTimeout);
-  }, [handleEditorChange]);
+    const handleInput = () => {
+      handleSuggestions();
+    };
+
+    editor.addEventListener('input', handleInput);
+    return () => {
+      editor.removeEventListener('input', handleInput);
+    };
+  }, [editorRef, handleSuggestions]);
 
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-full max-w-2xl bg-white dark:bg-gray-800 
-                    rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2">
-      <div className="flex flex-col gap-2">
+    <div className="absolute bottom-full left-0 w-full p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+      <div className="max-h-60 overflow-y-auto">
         {suggestions.map((suggestion, index) => {
           const Icon = getSuggestionIcon(suggestion.type);
           return (
-            <div
+            <button
               key={index}
+              onClick={() => applySuggestion(suggestion)}
+              onMouseEnter={() => setSelectedIndex(index)}
               className={clsx(
-                'flex items-start gap-2 p-2 rounded-lg transition-colors cursor-pointer',
-                selectedIndex === index
+                'w-full px-3 py-2 flex items-center gap-2 text-left rounded-md transition-colors',
+                index === selectedIndex
                   ? 'bg-blue-50 dark:bg-blue-900'
                   : 'hover:bg-gray-50 dark:hover:bg-gray-700'
               )}
-              onClick={() => applySuggestion(suggestion)}
             >
-              <Icon className="w-5 h-5 mt-0.5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {suggestion.text}
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {Math.round(suggestion.confidence * 100)}% 置信度
-                    </span>
-                    {selectedIndex === index && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        按Tab使用
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {suggestion.explanation && (
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {suggestion.explanation}
-                  </div>
-                )}
-              </div>
-            </div>
+              <Icon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                {suggestion.text}
+              </span>
+            </button>
           );
         })}
       </div>
