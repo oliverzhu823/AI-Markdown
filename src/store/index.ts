@@ -1,151 +1,128 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
-import type { EditorState, Version, Settings, AIConfig } from '@/types';
+import { EditorState, EditorHistory } from '@/types/editor';
 
-const DEFAULT_SETTINGS: Settings = {
-  isDarkMode: false,
-  autoSave: true,
-  autoSaveInterval: 30000,
+interface VersionState {
+  aiConfig: {
+    model: string;
+    apiKey: string;
+    temperature: number;
+  };
+}
+
+const DEFAULT_SETTINGS = {
+  theme: 'github',
+  fontSize: 14,
+  lineHeight: 1.5,
+  tabSize: 2,
 };
 
-const DEFAULT_AI_CONFIG: AIConfig = {
-  apiKey: '',
-  model: 'gpt-3.5-turbo',
-  temperature: 0.7,
+const DEFAULT_HISTORY: EditorHistory = {
+  undoStack: [],
+  redoStack: [],
 };
 
-export const useVersionStore = create<EditorState>()(
-  persist(
-    (set, get) => ({
-      versions: [],
-      currentVersion: null,
-      selectedTags: [],
-      settings: DEFAULT_SETTINGS,
-      aiConfig: DEFAULT_AI_CONFIG,
+export const useVersionStore = create<EditorState & VersionState>((set, get) => ({
+  content: '',
+  history: DEFAULT_HISTORY,
+  settings: DEFAULT_SETTINGS,
+  tags: [],
+  aiConfig: {
+    model: import.meta.env.VITE_DEFAULT_AI_MODEL || 'gpt-3.5-turbo',
+    apiKey: import.meta.env.VITE_DEEPSEEK_API_KEY || '',
+    temperature: parseFloat(import.meta.env.VITE_DEFAULT_AI_TEMPERATURE || '0.7'),
+  },
+
+  // 编辑器内容管理
+  setContent: (content: string) => {
+    const currentState = get();
+    currentState.pushToHistory(currentState.content);
+    set({ content });
+  },
+
+  // 历史记录管理
+  pushToHistory: (content: string) => {
+    set((state) => ({
+      history: {
+        undoStack: [...state.history.undoStack, content],
+        redoStack: [],
+      },
+    }));
+  },
+
+  undo: () => {
+    set((state) => {
+      const { undoStack, redoStack } = state.history;
+      if (undoStack.length === 0) return state;
+
+      const newContent = undoStack[undoStack.length - 1];
+      const newUndoStack = undoStack.slice(0, -1);
+      const newRedoStack = [state.content, ...redoStack];
+
+      return {
+        content: newContent,
+        history: {
+          undoStack: newUndoStack,
+          redoStack: newRedoStack,
+        },
+      };
+    });
+  },
+
+  redo: () => {
+    set((state) => {
+      const { undoStack, redoStack } = state.history;
+      if (redoStack.length === 0) return state;
+
+      const newContent = redoStack[0];
+      const newRedoStack = redoStack.slice(1);
+      const newUndoStack = [...undoStack, state.content];
+
+      return {
+        content: newContent,
+        history: {
+          undoStack: newUndoStack,
+          redoStack: newRedoStack,
+        },
+      };
+    });
+  },
+
+  clearHistory: () => {
+    set({
       history: {
         undoStack: [],
         redoStack: [],
       },
-      content: '',
+    });
+  },
 
-      loadVersions: () => {
-        const versions = localStorage.getItem('versions');
-        if (versions) {
-          set({ versions: JSON.parse(versions) });
-        }
-      },
+  // 设置管理
+  updateSettings: (settings: Partial<typeof DEFAULT_SETTINGS>) => {
+    set((state) => ({
+      settings: { ...state.settings, ...settings },
+    }));
+  },
 
-      saveVersion: (content?: string) => {
-        const state = get();
-        const newVersion: Version = {
-          id: uuidv4(),
-          content: content || state.content,
-          timestamp: Date.now(),
-          tags: state.selectedTags,
-        };
-        set((state) => ({
-          versions: [...state.versions, newVersion],
-          currentVersion: newVersion,
-        }));
-      },
+  // 标签管理
+  addTag: (tag: string) => {
+    set((state) => ({
+      tags: [...state.tags, tag],
+    }));
+  },
 
-      updateContent: (content: string) => {
-        set((state) => {
-          // 保存当前内容到历史记录
-          const undoStack = [...state.history.undoStack, state.content];
-          return {
-            content,
-            history: {
-              undoStack,
-              redoStack: [],
-            },
-          };
-        });
-      },
+  removeTag: (tag: string) => {
+    set((state) => ({
+      tags: state.tags.filter((t) => t !== tag),
+    }));
+  },
 
-      importVersions: (versions: Version[]) => {
-        set({ versions });
-      },
+  // AI配置管理
+  updateAIConfig: (config: Partial<VersionState['aiConfig']>) => {
+    set((state) => ({
+      aiConfig: { ...state.aiConfig, ...config },
+    }));
+  },
 
-      deleteVersion: (id: string) => {
-        set((state) => ({
-          versions: state.versions.filter((v) => v.id !== id),
-        }));
-      },
-
-      loadVersion: (id: string) => {
-        const version = get().versions.find((v) => v.id === id);
-        if (version) {
-          set({ currentVersion: version, content: version.content });
-        }
-      },
-
-      updateSettings: (settings: Partial<Settings>) => {
-        set((state) => ({
-          settings: { ...state.settings, ...settings },
-        }));
-      },
-
-      updateAIConfig: (config: Partial<AIConfig>) => {
-        set((state) => ({
-          aiConfig: { ...state.aiConfig, ...config },
-        }));
-      },
-
-      addTag: (tag: string) => {
-        set((state) => ({
-          selectedTags: [...state.selectedTags, tag],
-        }));
-      },
-
-      removeTag: (tag: string) => {
-        set((state) => ({
-          selectedTags: state.selectedTags.filter((t) => t !== tag),
-        }));
-      },
-
-      undo: () => {
-        set((state) => {
-          if (state.history.undoStack.length === 0) return state;
-          const undoStack = [...state.history.undoStack];
-          const content = undoStack.pop() || '';
-          return {
-            content,
-            history: {
-              undoStack,
-              redoStack: [...state.history.redoStack, state.content],
-            },
-          };
-        });
-      },
-
-      redo: () => {
-        set((state) => {
-          if (state.history.redoStack.length === 0) return state;
-          const redoStack = [...state.history.redoStack];
-          const content = redoStack.pop() || '';
-          return {
-            content,
-            history: {
-              undoStack: [...state.history.undoStack, state.content],
-              redoStack,
-            },
-          };
-        });
-      },
-
-      clearHistory: () => {
-        set({
-          history: {
-            undoStack: [],
-            redoStack: [],
-          },
-        });
-      },
-    }),
-    {
-      name: 'editor-storage',
-    }
-  )
-);
+  // 获取当前内容
+  get: () => get().content,
+}));

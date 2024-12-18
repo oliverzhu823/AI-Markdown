@@ -1,4 +1,4 @@
-import { TextRange } from '@/types';
+import { TextRange } from '@/types/editor';
 
 interface EditorCommand {
   id: string;
@@ -169,45 +169,21 @@ export function insertTaskList(
   return replaceSelection(text, selection, taskLines.join('\n'));
 }
 
-export const EditorCommand = {
+export const EditorCommands: Record<string, EditorCommand> = {
   Bold: {
     id: 'bold',
     name: '粗体',
     icon: 'format-bold',
     shortcut: { key: 'b', ctrlKey: true },
-    execute: (text: string, selection: TextRange) => {
-      const prefix = '**';
-      const suffix = '**';
-      const newText = text.substring(0, selection.start) + 
-                     prefix + getSelectedText(text, selection) + suffix + 
-                     text.substring(selection.end);
-      return {
-        text: newText,
-        selection: {
-          start: selection.start + prefix.length,
-          end: selection.start + prefix.length + getSelectedText(text, selection).length,
-        },
-      };
-    },
+    execute: (text: string, selection: TextRange) => wrapText(text, selection, '**'),
   },
   Italic: {
     id: 'italic',
     name: '斜体',
     icon: 'format-italic',
     shortcut: { key: 'i', ctrlKey: true },
-    execute: (text: string, selection: TextRange) => {
-      const prefix = '_';
-      const suffix = '_';
-      const newText = text.substring(0, selection.start) + 
-                     prefix + getSelectedText(text, selection) + suffix + 
-                     text.substring(selection.end);
-      return {
-        text: newText,
-        selection: {
-          start: selection.start + prefix.length,
-          end: selection.start + prefix.length + getSelectedText(text, selection).length,
-        },
-      };
-    },
+    execute: (text: string, selection: TextRange) => wrapText(text, selection, '_'),
   },
-} as const;
+};
+
+export type { TextRange };
