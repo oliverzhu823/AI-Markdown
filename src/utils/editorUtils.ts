@@ -15,6 +15,28 @@ interface EditorCommand {
   };
 }
 
+export interface TextRange {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface EditorCommand {
+  name: string;
+  execute: () => void;
+}
+
+export function executeCommand(command: EditorCommand) {
+  command.execute();
+}
+
+export function getSelectedRange(element: HTMLTextAreaElement): TextRange {
+  const start = element.selectionStart;
+  const end = element.selectionEnd;
+  const text = element.value.substring(start, end);
+  return { start, end, text };
+}
+
 export function getSelectedText(text: string, selection: TextRange): string {
   return text.substring(selection.start, selection.end);
 }

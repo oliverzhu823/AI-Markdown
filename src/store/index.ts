@@ -26,16 +26,25 @@ const initialState: VersionState = {
   }
 };
 
-export const useVersionStore = create<VersionState>((set, get) => ({
+export const useVersionStore = create<EditorState & VersionState>((set, get) => ({
   ...initialState,
 
-  // 编辑器状态管理
+  // Editor state management
+  content: '',
+  history: initialState.history,
+  get: () => get().content,
+
   setContent: (content: string) => {
+    set((state) => {
+      state.pushToHistory(state.content);
+      return { content };
+    });
+  },
+
+  pushToHistory: (content: string) => {
     set((state) => ({
-      content,
       history: {
-        ...state.history,
-        undoStack: [...state.history.undoStack, state.content],
+        undoStack: [...state.history.undoStack, content],
         redoStack: []
       }
     }));
@@ -88,12 +97,17 @@ export const useVersionStore = create<VersionState>((set, get) => ({
     });
   },
 
-  // 版本管理
+  // Version management
+  versions: initialState.versions,
+  selectedVersion: initialState.selectedVersion,
+  
   selectVersion: (version: any) => {
     set({ selectedVersion: version });
   },
 
-  // AI配置
+  // AI configuration
+  aiConfig: initialState.aiConfig,
+  
   updateAIConfig: (config: Partial<VersionState['aiConfig']>) => {
     set((state) => ({
       aiConfig: { ...state.aiConfig, ...config }

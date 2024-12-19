@@ -1,5 +1,4 @@
 import React from 'react';
-import { diffLines } from 'diff';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 
 interface DiffViewProps {

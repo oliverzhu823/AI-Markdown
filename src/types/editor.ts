@@ -1,17 +1,14 @@
 // 编辑器状态类型定义
-export interface TextRange {
-  start: number;
-  end: number;
-  text: string;
-}
+import { TextRange } from '@/utils/editorUtils';
 
 export interface EditorHistory {
-  undoStack: any[];
-  redoStack: any[];
+  undoStack: string[];
+  redoStack: string[];
 }
 
 export interface EditorState {
   content: string;
+  selection?: TextRange;
   history: EditorHistory;
   undo: () => void;
   redo: () => void;

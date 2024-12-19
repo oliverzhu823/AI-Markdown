@@ -1,8 +1,15 @@
-import { AIContext } from './ai/context';
+export interface AIContext {
+  text: string;
+  selection?: {
+    start: number;
+    end: number;
+    text: string;
+  };
+}
 
 export async function getAICompletion(promptId: string, context: AIContext): Promise<string> {
   // 简化为同步返回，后续实现真实的AI调用
-  return '这是一个示例回复';
+  return '示例回复';
 }
 
 export function stopAICompletion() {
