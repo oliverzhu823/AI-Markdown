@@ -1,106 +1,17 @@
-import { TextRange } from '@/types/editor';
-
-interface EditorCommandResult {
-  text: string;
-  selection?: TextRange;
+export interface TextRange {
+  start: number;
+  end: number;
 }
 
-interface EditorCommand {
+export interface EditorCommand {
   id: string;
   name: string;
+  icon: string;
   shortcut: string;
-}
-
-export const createCommand = (
-  id: string,
-  name: string,
-  shortcut: string
-): EditorCommand => ({
-  id,
-  name,
-  shortcut
-});
-
-export const getSelectionRange = (editor: any): TextRange => {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const text = editor.value.substring(start, end);
-  return { start, end, text };
-};
-
-export const setSelectionRange = (editor: any, range: TextRange): void => {
-  editor.setSelection(range.start, range.end);
-};
-
-// 基础编辑命令
-export const basicCommands = {
-  bold: createCommand('bold', 'Bold', 'Ctrl+B'),
-  italic: createCommand('italic', 'Italic', 'Ctrl+I'),
-  code: createCommand('code', 'Code', 'Ctrl+Shift+C'),
-  link: createCommand('link', 'Link', 'Ctrl+Shift+L'),
-  image: createCommand('image', 'Image', 'Ctrl+Shift+I'),
-  list: createCommand('list', 'List', 'Ctrl+Shift+O'),
-  quote: createCommand('quote', 'Quote', 'Ctrl+Shift+Q'),
-};
-
-export function executeCommand(command: EditorCommand, text: string, selection?: TextRange): EditorCommandResult {
-  const result: EditorCommandResult = { text };
-
-  if (!selection) {
-    return result;
-  }
-
-  const { start, end } = selection;
-  const selectedText = text.substring(start, end);
-
-  switch (command.id) {
-    case 'bold':
-      result.text = text.substring(0, start) + `**${selectedText}**` + text.substring(end);
-      result.selection = { start: start + 2, end: end + 2, text: selectedText };
-      break;
-
-    case 'italic':
-      result.text = text.substring(0, start) + `*${selectedText}*` + text.substring(end);
-      result.selection = { start: start + 1, end: end + 1, text: selectedText };
-      break;
-
-    case 'code':
-      result.text = text.substring(0, start) + '`' + selectedText + '`' + text.substring(end);
-      result.selection = { start: start + 1, end: end + 1, text: selectedText };
-      break;
-
-    case 'link':
-      result.text = text.substring(0, start) + `[${selectedText}]()` + text.substring(end);
-      result.selection = { start: end + 3, end: end + 3, text: '' };
-      break;
-
-    case 'image':
-      result.text = text.substring(0, start) + `![${selectedText}]()` + text.substring(end);
-      result.selection = { start: end + 3, end: end + 3, text: '' };
-      break;
-
-    case 'list':
-      result.text = text.substring(0, start) + `- ${selectedText}` + text.substring(end);
-      result.selection = { start: start + 2, end: end + 2, text: selectedText };
-      break;
-
-    case 'quote':
-      result.text = text.substring(0, start) + `> ${selectedText}` + text.substring(end);
-      result.selection = { start: start + 2, end: end + 2, text: selectedText };
-      break;
-
-    default:
-      break;
-  }
-
-  return result;
-}
-
-export function getSelectedRange(element: HTMLTextAreaElement): TextRange {
-  const start = element.selectionStart;
-  const end = element.selectionEnd;
-  const text = element.value.substring(start, end);
-  return { start, end, text };
+  execute: (text: string, selection: TextRange) => {
+    text: string;
+    selection: TextRange;
+  };
 }
 
 export function getSelectedText(text: string, selection: TextRange): string {
@@ -121,7 +32,6 @@ export function replaceSelection(
     selection: {
       start: selection.start,
       end: selection.start + replacement.length,
-      text: replacement,
     },
   };
 }
@@ -258,12 +168,96 @@ export function insertTaskList(
   return replaceSelection(text, selection, taskLines.join('\n'));
 }
 
-export const EditorCommands = {
-  Bold: { id: 'bold', name: '加粗', shortcut: 'Ctrl+B' },
-  Italic: { id: 'italic', name: '斜体', shortcut: 'Ctrl+I' },
-  Code: { id: 'code', name: '代码', shortcut: 'Ctrl+`' },
-  Link: { id: 'link', name: '链接', shortcut: 'Ctrl+K' },
-  Image: { id: 'image', name: '图片', shortcut: 'Ctrl+Shift+I' },
-  List: { id: 'list', name: '列表', shortcut: 'Ctrl+L' },
-  Quote: { id: 'quote', name: '引用', shortcut: 'Ctrl+Q' },
-} as const;
+export const editorCommands: EditorCommand[] = [
+  {
+    id: 'bold',
+    name: '加粗',
+    icon: 'format-bold',
+    shortcut: 'Ctrl+B',
+    execute: (text, selection) => wrapText(text, selection, '**'),
+  },
+  {
+    id: 'italic',
+    name: '斜体',
+    icon: 'format-italic',
+    shortcut: 'Ctrl+I',
+    execute: (text, selection) => wrapText(text, selection, '_'),
+  },
+  {
+    id: 'strikethrough',
+    name: '删除线',
+    icon: 'format-strikethrough',
+    shortcut: 'Ctrl+Shift+S',
+    execute: (text, selection) => wrapText(text, selection, '~~'),
+  },
+  {
+    id: 'heading',
+    name: '标题',
+    icon: 'format-header-1',
+    shortcut: 'Ctrl+H',
+    execute: (text, selection) => wrapText(text, selection, '# ', true),
+  },
+  {
+    id: 'link',
+    name: '链接',
+    icon: 'link',
+    shortcut: 'Ctrl+K',
+    execute: insertLink,
+  },
+  {
+    id: 'image',
+    name: '图片',
+    icon: 'image',
+    shortcut: 'Ctrl+Shift+I',
+    execute: insertImage,
+  },
+  {
+    id: 'code',
+    name: '代码块',
+    icon: 'code-tags',
+    shortcut: 'Ctrl+Shift+K',
+    execute: insertCodeBlock,
+  },
+  {
+    id: 'table',
+    name: '表格',
+    icon: 'table',
+    shortcut: 'Ctrl+T',
+    execute: insertTable,
+  },
+  {
+    id: 'ordered-list',
+    name: '有序列表',
+    icon: 'format-list-numbered',
+    shortcut: 'Ctrl+Shift+O',
+    execute: insertOrderedList,
+  },
+  {
+    id: 'unordered-list',
+    name: '无序列表',
+    icon: 'format-list-bulleted',
+    shortcut: 'Ctrl+Shift+U',
+    execute: insertUnorderedList,
+  },
+  {
+    id: 'blockquote',
+    name: '引用',
+    icon: 'format-quote-close',
+    shortcut: 'Ctrl+Q',
+    execute: insertBlockquote,
+  },
+  {
+    id: 'horizontal-rule',
+    name: '分割线',
+    icon: 'minus',
+    shortcut: 'Ctrl+Shift+H',
+    execute: insertHorizontalRule,
+  },
+  {
+    id: 'task-list',
+    name: '任务列表',
+    icon: 'checkbox-marked-outline',
+    shortcut: 'Ctrl+Shift+L',
+    execute: insertTaskList,
+  },
+];

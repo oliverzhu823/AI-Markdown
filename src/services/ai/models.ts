@@ -1,5 +1,9 @@
 import { AIConfig } from '@/types';
-import { Message } from './context';
+
+export interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
 
 export interface ModelResponse {
   text: string;
@@ -11,6 +15,7 @@ export interface StreamResponse extends ModelResponse {
 }
 
 export interface ModelRequestOptions {
+  model: string;
   prompt: string;
   messages?: Message[];
   stream?: boolean;
@@ -91,7 +96,7 @@ export abstract class BaseModelAdapter implements ModelAdapter {
             
             accumulatedText += formattedContent;
             options.onPartialResponse?.({
-              text: formattedContent,  // 只发送新增的内容
+              text: accumulatedText,
               isPartial: true,
             });
           }
@@ -213,33 +218,21 @@ export class DeepSeekAdapter extends BaseModelAdapter {
     config: AIConfig,
     isStream: boolean
   ) {
-    const API_URL = import.meta.env.VITE_DEEPSEEK_API_URL || 'https://api.deepseek.com';
+    const API_URL = import.meta.env.VITE_DEEPSEEK_API_URL || 'https://api.deepseek.com/v1';
     
     if (!config.apiKey) {
       throw new Error('请配置API密钥');
     }
 
-    // 确保系统提示词在消息列表的开始
-    const systemMessage = {
-      role: 'system',
-      content: '你是一个专业的写作助手，擅长使用Markdown格式输出文本。请保持输出的简洁性和可读性。'
-    };
-
     const messages = options.messages || [
-      systemMessage,
       {
         role: 'user',
         content: options.prompt
       }
     ];
 
-    // 如果消息列表不包含系统消息，添加它
-    if (!messages.some(msg => msg.role === 'system')) {
-      messages.unshift(systemMessage);
-    }
-
     try {
-      const response = await fetch(`${API_URL}/v1/chat/completions`, {
+      const response = await fetch(`${API_URL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,10 +243,7 @@ export class DeepSeekAdapter extends BaseModelAdapter {
           messages,
           temperature: config.temperature || this.defaultTemperature,
           stream: isStream,
-          max_tokens: Math.min(this.maxTokens, 2000), // 限制输出长度
-          presence_penalty: 0.1,  // 适度避免重复
-          frequency_penalty: 0.1,  // 适度减少重复
-          top_p: 0.95  // 控制输出多样性，但保持较高的准确性
+          max_tokens: 2000
         }),
         signal: options.signal,
       });
@@ -271,17 +261,11 @@ export class DeepSeekAdapter extends BaseModelAdapter {
   }
 
   protected extractStreamContent(parsed: any): string {
-    if (!parsed.choices?.[0]?.delta?.content) {
-      return '';
-    }
-    return parsed.choices[0].delta.content;
+    return parsed.choices[0]?.delta?.content || '';
   }
 
   protected extractContent(response: any): string {
-    if (!response.choices?.[0]?.message?.content) {
-      return '';
-    }
-    return response.choices[0].message.content;
+    return response.choices[0]?.message?.content || '';
   }
 }
 
@@ -422,14 +406,19 @@ export class ClaudeAdapter extends BaseModelAdapter {
   }
 }
 
-// 可用模型列表
-export const availableModels: ModelAdapter[] = [
-  new DeepSeekAdapter(),
-  new OpenAIAdapter(),
-  new ClaudeAdapter(),
-];
+const modelAdapters = new Map<string, ModelAdapter>();
 
-// 获取指定模型适配器
-export function getModelAdapter(name: string): ModelAdapter | undefined {
-  return availableModels.find(model => model.name === name);
+export function registerModelAdapter(model: string, adapter: ModelAdapter) {
+  modelAdapters.set(model, adapter);
 }
+
+export function getModelAdapter(model: string): ModelAdapter | undefined {
+  return modelAdapters.get(model);
+}
+
+export const availableModels = ['deepseek', 'openai', 'claude'] as const;
+export type ModelType = typeof availableModels[number];
+
+registerModelAdapter('deepseek', new DeepSeekAdapter());
+registerModelAdapter('openai', new OpenAIAdapter());
+registerModelAdapter('claude', new ClaudeAdapter());

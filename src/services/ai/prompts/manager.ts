@@ -1,46 +1,5 @@
-import { PromptTemplate, PromptOptions, PromptContext, AIContext } from './types';
+import { PromptTemplate, PromptOptions, PromptContext } from './types';
 import { PROMPT_TEMPLATES } from './templates';
-import { AIContext } from '../context';
-
-interface PromptTemplate {
-  id: string;
-  name: string;
-  template: string;
-  description?: string;
-  defaultOptions?: PromptOptions;
-  category?: string;
-}
-
-interface PromptContext {
-  text: string;
-  selection?: {
-    start: number;
-    end: number;
-    text: string;
-  };
-  content?: string;
-}
-
-const templates: Record<string, PromptTemplate> = {
-  improve: {
-    id: 'improve',
-    name: '改进文本',
-    template: '请帮我改进以下文本，使其更加清晰、准确和专业：\n\n{{text}}',
-    description: '改进选中的文本，使其更加清晰和专业'
-  },
-  explain: {
-    id: 'explain',
-    name: '解释内容',
-    template: '请解释以下内容：\n\n{{text}}',
-    description: '解释选中的内容'
-  },
-  continue: {
-    id: 'continue',
-    name: '继续写作',
-    template: '请基于以下内容继续写作：\n\n{{text}}',
-    description: '基于当前内容继续写作'
-  }
-};
 
 export class PromptManager {
   private templates: Map<string, PromptTemplate>;
@@ -131,29 +90,10 @@ export class PromptManager {
       prompt += `\n\n选中文本：\n${context.selection.text}`;
     } else if (context.content) {
       prompt += `\n\n当前文档：\n${context.content}`;
-    } else {
-      prompt = prompt.replace('{{text}}', context.text);
     }
 
     return prompt;
   }
-}
-
-export function getPromptTemplate(templateId: string): PromptTemplate {
-  const template = templates[templateId];
-  if (!template) {
-    throw new Error(`未找到模板: ${templateId}`);
-  }
-  return template;
-}
-
-export function generatePrompt(templateId: string, context: PromptContext): string {
-  const template = templates[templateId];
-  if (!template) {
-    throw new Error(`未找到模板: ${templateId}`);
-  }
-
-  return template.template.replace('{{text}}', context.text);
 }
 
 // 导出单例实例

@@ -1,45 +1,25 @@
-import { AIContext } from '@/services/ai';
+import { Message } from './models';
 
-export interface Message {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+class ContextManager {
+  private messages: Map<string, Message[]>;
+
+  constructor() {
+    this.messages = new Map();
+  }
+
+  getMessages(model: string): Message[] {
+    return this.messages.get(model) || [];
+  }
+
+  addMessage(model: string, role: 'user' | 'assistant', content: string) {
+    const messages = this.getMessages(model);
+    messages.push({ role, content });
+    this.messages.set(model, messages);
+  }
+
+  clearMessages(model: string) {
+    this.messages.delete(model);
+  }
 }
 
-export interface ConversationContext {
-  messages: Message[];
-  lastUpdateTime: number;
-}
-
-export interface AIContext {
-  text: string;
-  selection?: {
-    start: number;
-    end: number;
-    text: string;
-  };
-}
-
-export interface AIMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface AIConfig {
-  model: string;
-  temperature: number;
-  maxTokens: number;
-  messages: AIMessage[];
-}
-
-export const defaultConfig: AIConfig = {
-  model: 'gpt-3.5-turbo',
-  temperature: 0.7,
-  maxTokens: 2048,
-  messages: []
-};
-
-export const contextManager = {
-  getMessages: (model: string) => [],
-  addMessage: (model: string, role: string, content: string) => {},
-  clearMessages: (model: string) => {}
-};
+export const contextManager = new ContextManager();

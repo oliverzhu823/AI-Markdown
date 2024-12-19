@@ -1,4 +1,3 @@
-import React from 'react';
 import { useState } from 'react';
 import { useVersionStore } from '@/store';
 import { Version } from '@/types';
@@ -6,22 +5,11 @@ import { format } from 'date-fns';
 import { MdHistory, MdCompareArrows, MdCheck } from 'react-icons/md';
 import DiffDialog from './DiffDialog';
 
-interface Version {
-  id: string;
-  title: string;
-  content: string;
-  timestamp: number;
-  tags: string[];
-}
-
 interface VersionItemProps {
   version: Version;
-  isSelected?: boolean;
-  onSelect: () => void;
-  onShowDiff: () => void;
 }
 
-export function VersionItem({ version, isSelected, onSelect, onShowDiff }: VersionItemProps) {
+export default function VersionItem({ version }: VersionItemProps) {
   const [showDiff, setShowDiff] = useState(false);
   const { currentVersion, loadVersion } = useVersionStore();
 
@@ -38,10 +26,10 @@ export function VersionItem({ version, isSelected, onSelect, onShowDiff }: Versi
 
   return (
     <div
-      className={`version-item ${isSelected ? 'selected' : ''} group p-4 border-b border-gray-200 dark:border-gray-700 
+      onClick={handleLoadVersion}
+      className={`group p-4 border-b border-gray-200 dark:border-gray-700 
                 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors
                 ${isActive ? 'bg-blue-50 dark:bg-blue-900/50' : 'bg-white dark:bg-gray-900'}`}
-      onClick={onSelect}
     >
       <div className="flex flex-col gap-2">
         {/* 时间和操作按钮 */}

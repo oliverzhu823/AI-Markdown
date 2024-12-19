@@ -17,25 +17,12 @@ export interface AIConfig {
   temperature: number;
 }
 
-export interface TextRange {
-  start: number;
-  end: number;
-  text: string;
-}
-
-export interface EditorHistory {
-  undoStack: string[];
-  redoStack: string[];
-}
-
 export interface EditorState {
   versions: Version[];
   currentVersion: Version | null;
   selectedTags: string[];
   settings: Settings;
   aiConfig: AIConfig;
-  history: EditorHistory;
-  content: string;
   loadVersions: () => void;
   saveVersion: (content?: string) => void;
   updateContent: (content: string) => void;
@@ -46,8 +33,4 @@ export interface EditorState {
   updateAIConfig: (config: Partial<AIConfig>) => void;
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
-  undo: () => void;
-  redo: () => void;
-  pushToHistory: (content: string) => void;
-  clearHistory: () => void;
 }
