@@ -1,11 +1,20 @@
 import { create } from 'zustand';
 import { EditorState, EditorHistory } from '@/types/editor';
 
+interface Version {
+  id: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  tags: string[];
+}
+
 interface VersionState {
   content: string;
   history: EditorHistory;
-  versions: any[];
-  selectedVersion: any;
+  versions: Version[];
+  selectedVersion: Version | null;
+  selectedTags: string[];
   aiConfig: {
     model: string;
     temperature: number;
@@ -20,6 +29,7 @@ const initialState: VersionState = {
   },
   versions: [],
   selectedVersion: null,
+  selectedTags: [],
   aiConfig: {
     model: 'gpt-3.5-turbo',
     temperature: 0.7
@@ -100,9 +110,22 @@ export const useVersionStore = create<EditorState & VersionState>((set, get) => 
   // Version management
   versions: initialState.versions,
   selectedVersion: initialState.selectedVersion,
+  selectedTags: initialState.selectedTags,
   
-  selectVersion: (version: any) => {
+  selectVersion: (version: Version) => {
     set({ selectedVersion: version });
+  },
+
+  addTag: (tag: string) => {
+    set((state) => ({
+      selectedTags: [...state.selectedTags, tag]
+    }));
+  },
+
+  removeTag: (tag: string) => {
+    set((state) => ({
+      selectedTags: state.selectedTags.filter(t => t !== tag)
+    }));
   },
 
   // AI configuration

@@ -9,26 +9,17 @@ export function VersionPanel() {
 
   return (
     <div className="version-panel">
-      <div className="panel-header">
-        <h2>版本历史</h2>
-        <TagStats />
-        <TagFilter />
-      </div>
-      
+      <TagFilter />
+      <TagStats />
       <div className="version-list">
         {versions.map((version) => (
           <VersionItem
             key={version.id}
             version={version}
-            isSelected={version.id === selectedVersion?.id}
+            isSelected={selectedVersion?.id === version.id}
             onSelect={() => selectVersion(version)}
           />
         ))}
-        {versions.length === 0 && (
-          <div className="empty-state">
-            暂无版本历史
-          </div>
-        )}
       </div>
     </div>
   );

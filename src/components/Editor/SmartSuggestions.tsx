@@ -33,14 +33,12 @@ export function SmartSuggestions({
             <button
               className="accept-button"
               onClick={() => onAccept(suggestion)}
-              title="接受建议"
             >
               接受
             </button>
             <button
               className="reject-button"
               onClick={onReject}
-              title="拒绝建议"
             >
               拒绝
             </button>

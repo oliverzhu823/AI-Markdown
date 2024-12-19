@@ -2,8 +2,13 @@ import React from 'react';
 import { useVersionStore } from '@/store';
 import { TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
-export default function TagFilter() {
-  const { versions, selectedTags, addTag, removeTag } = useVersionStore();
+interface Tag {
+  name: string;
+  count: number;
+}
+
+export function TagFilter() {
+  const { versions, selectedTags = [], addTag, removeTag } = useVersionStore();
 
   // 从所有版本中收集唯一的标签
   const allTags = React.useMemo(() => {
@@ -14,6 +19,14 @@ export default function TagFilter() {
     return Array.from(tagSet);
   }, [versions]);
 
+  const handleTagClick = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      removeTag(tag);
+    } else {
+      addTag(tag);
+    }
+  };
+
   return (
     <div className="p-4 border-b border-gray-200 dark:border-gray-700">
       <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
@@ -23,13 +36,7 @@ export default function TagFilter() {
         {allTags.map(tag => (
           <button
             key={tag}
-            onClick={() => {
-              if (selectedTags.includes(tag)) {
-                removeTag(tag);
-              } else {
-                addTag(tag);
-              }
-            }}
+            onClick={() => handleTagClick(tag)}
             className={`inline-flex items-center px-2 py-1 rounded-full text-xs
                      ${
                        selectedTags.includes(tag)

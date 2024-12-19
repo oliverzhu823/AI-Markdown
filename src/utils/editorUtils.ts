@@ -26,6 +26,22 @@ export interface EditorCommand {
   execute: () => void;
 }
 
+export const createCommand = (name: string, execute: () => void): EditorCommand => ({
+  name,
+  execute
+});
+
+export const getSelectionRange = (editor: any): TextRange => {
+  const start = editor.getSelectionStart();
+  const end = editor.getSelectionEnd();
+  const text = editor.getValue().substring(start, end);
+  return { start, end, text };
+};
+
+export const setSelectionRange = (editor: any, range: TextRange): void => {
+  editor.setSelection(range.start, range.end);
+};
+
 export function executeCommand(command: EditorCommand) {
   command.execute();
 }

@@ -1,25 +1,29 @@
-import { useState, useRef, useCallback } from 'react';
+import React from 'react';
 import { useVersionStore } from '@/store';
-import { useAutoSave } from '@/hooks/useAutoSave';
+import { TextRange, getSelectionRange, setSelectionRange } from '@/utils/editorUtils';
 
 interface EditorCoreProps {
   onAITrigger: () => void;
+  onSelectionChange?: (selection: TextRange | undefined) => void;
 }
 
-export default function EditorCore({ onAITrigger }: EditorCoreProps) {
-  const [content, setContent] = useState('');
-  const { updateContent } = useVersionStore();
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+export default function EditorCore({ onAITrigger, onSelectionChange }: EditorCoreProps) {
+  const { content, setContent, updateContent } = useVersionStore();
+  const editorRef = React.useRef<HTMLTextAreaElement>(null);
 
-  useAutoSave(content);
-
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
     updateContent(newContent);
-  }, [updateContent]);
+  };
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleSelect = () => {
+    if (!editorRef.current) return;
+    const selection = getSelectionRange(editorRef.current);
+    onSelectionChange?.(selection);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理AI触发
     if (e.key === ' ' && e.ctrlKey) {
       e.preventDefault();
@@ -38,18 +42,19 @@ export default function EditorCore({ onAITrigger }: EditorCoreProps) {
       editorRef.current!.selectionStart = editorRef.current!.selectionEnd = start + 2;
       handleChange({ target: { value: newValue } } as React.ChangeEvent<HTMLTextAreaElement>);
     }
-  }, [handleChange, onAITrigger]);
+  };
 
   return (
     <div className="flex-1 p-4">
       <textarea
         ref={editorRef}
+        className="w-full h-full p-4 bg-white dark:bg-gray-800 border border-gray-200 
+                 dark:border-gray-700 rounded-lg resize-none focus:outline-none 
+                 focus:ring-2 focus:ring-blue-500 dark:text-gray-200 editor-core"
         value={content}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        className="w-full h-full p-4 bg-white dark:bg-gray-800 border border-gray-200 
-                 dark:border-gray-700 rounded-lg resize-none focus:outline-none 
-                 focus:ring-2 focus:ring-blue-500 dark:text-gray-200"
+        onSelect={handleSelect}
         placeholder="开始写作..."
       />
     </div>
