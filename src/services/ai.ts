@@ -120,11 +120,18 @@ export async function getAICompletion(
     // 根据上下文构建完整提示词
     let fullPrompt = options.prompt;
     if (options.context) {
-      const context: PromptContext = {
-        content: options.context.content,
-        selection: options.context.selection,
-      };
-      fullPrompt = promptManager.generatePrompt('context', context, { format: 'text' });
+      // 从 URL 中获取操作类型
+      const url = new URL(window.location.href);
+      const action = url.searchParams.get('action') || 'polish';
+      
+      fullPrompt = promptManager.generatePrompt(
+        action,  // 使用动态的模板 ID
+        {
+          content: options.context.content,
+          selection: options.context.selection,
+        },
+        { format: 'text' }
+      );
     }
 
     // 添加用户消息到历史

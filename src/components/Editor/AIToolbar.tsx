@@ -106,6 +106,11 @@ export default function AIToolbar({ editorRef }: AIToolbarProps) {
   const handleAIRequest = async (action: AIAction) => {
     if (!editorRef.current) return;
 
+    // 更新 URL 参数
+    const url = new URL(window.location.href);
+    url.searchParams.set('action', action.id);
+    window.history.replaceState({}, '', url.toString());
+
     const selection = {
       start: editorRef.current.selectionStart,
       end: editorRef.current.selectionEnd,
@@ -124,7 +129,7 @@ export default function AIToolbar({ editorRef }: AIToolbarProps) {
     try {
       const prompt = action.template.template;
       const response = await getAICompletion({
-        model: aiConfig.model,
+        model: selectedModel,
         prompt,
         context,
         stream: true,
