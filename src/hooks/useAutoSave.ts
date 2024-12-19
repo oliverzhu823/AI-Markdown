@@ -1,21 +1,18 @@
-import { useEffect, useRef } from 'react';
-import { useVersionStore } from '../store';
+import { useEffect } from 'react';
+import { useVersionStore } from '@/store';
 
-export function useAutoSave(content?: string) {
-  const { settings, saveVersion } = useVersionStore();
-  const timerRef = useRef<NodeJS.Timeout>();
+export function useAutoSave(content: string) {
+  const { autoSaveContent } = useVersionStore();
 
   useEffect(() => {
-    if (settings.autoSave) {
-      timerRef.current = setInterval(() => {
-        saveVersion(content);
-      }, settings.autoSaveInterval * 1000);
-    }
+    if (!content) return;
+
+    const timer = setTimeout(() => {
+      autoSaveContent(content);
+    }, 5000); // 5秒后自动保存
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      clearTimeout(timer);
     };
-  }, [settings.autoSave, settings.autoSaveInterval, saveVersion, content]);
+  }, [content, autoSaveContent]);
 }

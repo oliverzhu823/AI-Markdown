@@ -1,40 +1,30 @@
 import { TextRange } from '@/types/editor';
 
+interface EditorCommandResult {
+  text: string;
+  selection?: TextRange;
+}
+
 interface EditorCommand {
   id: string;
   name: string;
-  icon: string;
-  shortcut?: {
-    key: string;
-    ctrlKey: boolean;
-    shiftKey?: boolean;
-  };
-  execute: (text: string, selection: TextRange) => {
-    text: string;
-    selection: TextRange;
-  };
+  shortcut: string;
 }
 
-export interface TextRange {
-  start: number;
-  end: number;
-  text: string;
-}
-
-export interface EditorCommand {
-  name: string;
-  execute: () => void;
-}
-
-export const createCommand = (name: string, execute: () => void): EditorCommand => ({
+export const createCommand = (
+  id: string,
+  name: string,
+  shortcut: string
+): EditorCommand => ({
+  id,
   name,
-  execute
+  shortcut
 });
 
 export const getSelectionRange = (editor: any): TextRange => {
-  const start = editor.getSelectionStart();
-  const end = editor.getSelectionEnd();
-  const text = editor.getValue().substring(start, end);
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const text = editor.value.substring(start, end);
   return { start, end, text };
 };
 
@@ -42,8 +32,68 @@ export const setSelectionRange = (editor: any, range: TextRange): void => {
   editor.setSelection(range.start, range.end);
 };
 
-export function executeCommand(command: EditorCommand) {
-  command.execute();
+// 基础编辑命令
+export const basicCommands = {
+  bold: createCommand('bold', 'Bold', 'Ctrl+B'),
+  italic: createCommand('italic', 'Italic', 'Ctrl+I'),
+  code: createCommand('code', 'Code', 'Ctrl+Shift+C'),
+  link: createCommand('link', 'Link', 'Ctrl+Shift+L'),
+  image: createCommand('image', 'Image', 'Ctrl+Shift+I'),
+  list: createCommand('list', 'List', 'Ctrl+Shift+O'),
+  quote: createCommand('quote', 'Quote', 'Ctrl+Shift+Q'),
+};
+
+export function executeCommand(command: EditorCommand, text: string, selection?: TextRange): EditorCommandResult {
+  const result: EditorCommandResult = { text };
+
+  if (!selection) {
+    return result;
+  }
+
+  const { start, end } = selection;
+  const selectedText = text.substring(start, end);
+
+  switch (command.id) {
+    case 'bold':
+      result.text = text.substring(0, start) + `**${selectedText}**` + text.substring(end);
+      result.selection = { start: start + 2, end: end + 2, text: selectedText };
+      break;
+
+    case 'italic':
+      result.text = text.substring(0, start) + `*${selectedText}*` + text.substring(end);
+      result.selection = { start: start + 1, end: end + 1, text: selectedText };
+      break;
+
+    case 'code':
+      result.text = text.substring(0, start) + '`' + selectedText + '`' + text.substring(end);
+      result.selection = { start: start + 1, end: end + 1, text: selectedText };
+      break;
+
+    case 'link':
+      result.text = text.substring(0, start) + `[${selectedText}]()` + text.substring(end);
+      result.selection = { start: end + 3, end: end + 3, text: '' };
+      break;
+
+    case 'image':
+      result.text = text.substring(0, start) + `![${selectedText}]()` + text.substring(end);
+      result.selection = { start: end + 3, end: end + 3, text: '' };
+      break;
+
+    case 'list':
+      result.text = text.substring(0, start) + `- ${selectedText}` + text.substring(end);
+      result.selection = { start: start + 2, end: end + 2, text: selectedText };
+      break;
+
+    case 'quote':
+      result.text = text.substring(0, start) + `> ${selectedText}` + text.substring(end);
+      result.selection = { start: start + 2, end: end + 2, text: selectedText };
+      break;
+
+    default:
+      break;
+  }
+
+  return result;
 }
 
 export function getSelectedRange(element: HTMLTextAreaElement): TextRange {
@@ -71,6 +121,7 @@ export function replaceSelection(
     selection: {
       start: selection.start,
       end: selection.start + replacement.length,
+      text: replacement,
     },
   };
 }
@@ -207,21 +258,12 @@ export function insertTaskList(
   return replaceSelection(text, selection, taskLines.join('\n'));
 }
 
-export const EditorCommands: Record<string, EditorCommand> = {
-  Bold: {
-    id: 'bold',
-    name: '粗体',
-    icon: 'format-bold',
-    shortcut: { key: 'b', ctrlKey: true },
-    execute: (text: string, selection: TextRange) => wrapText(text, selection, '**'),
-  },
-  Italic: {
-    id: 'italic',
-    name: '斜体',
-    icon: 'format-italic',
-    shortcut: { key: 'i', ctrlKey: true },
-    execute: (text: string, selection: TextRange) => wrapText(text, selection, '_'),
-  },
-};
-
-export type { TextRange };
+export const EditorCommands = {
+  Bold: { id: 'bold', name: '加粗', shortcut: 'Ctrl+B' },
+  Italic: { id: 'italic', name: '斜体', shortcut: 'Ctrl+I' },
+  Code: { id: 'code', name: '代码', shortcut: 'Ctrl+`' },
+  Link: { id: 'link', name: '链接', shortcut: 'Ctrl+K' },
+  Image: { id: 'image', name: '图片', shortcut: 'Ctrl+Shift+I' },
+  List: { id: 'list', name: '列表', shortcut: 'Ctrl+L' },
+  Quote: { id: 'quote', name: '引用', shortcut: 'Ctrl+Q' },
+} as const;

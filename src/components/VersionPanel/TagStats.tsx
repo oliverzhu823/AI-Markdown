@@ -1,24 +1,36 @@
 import React from 'react';
+import { useMemo } from 'react';
 import { useVersionStore } from '@/store';
 import { TagIcon } from '@heroicons/react/24/outline';
 
+interface Version {
+  id: string;
+  tags: string[];
+}
+
 interface TagCount {
-  tag: string;
+  name: string;
   count: number;
+}
+
+interface TagStatsProps {
+  versions: Version[];
 }
 
 export function TagStats() {
   const { versions } = useVersionStore();
 
-  const tagCounts = React.useMemo(() => {
+  const tagCounts = useMemo(() => {
     const counts = new Map<string, number>();
+    
     versions.forEach(version => {
       version.tags?.forEach(tag => {
         counts.set(tag, (counts.get(tag) || 0) + 1);
       });
     });
+
     return Array.from(counts.entries())
-      .map(([tag, count]) => ({ tag, count }))
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [versions]);
 
@@ -30,14 +42,14 @@ export function TagStats() {
         热门标签
       </h3>
       <div className="space-y-2">
-        {tagCounts.map(({ tag, count }) => (
+        {tagCounts.map(({ name, count }) => (
           <div
-            key={tag}
+            key={name}
             className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400"
           >
             <span className="flex items-center">
               <TagIcon className="w-4 h-4 mr-1" />
-              {tag}
+              {name}
             </span>
             <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
               {count}

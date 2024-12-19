@@ -15,6 +15,7 @@ interface VersionState {
   versions: Version[];
   selectedVersion: Version | null;
   selectedTags: string[];
+  autoSave: boolean;
   aiConfig: {
     model: string;
     temperature: number;
@@ -30,6 +31,7 @@ const initialState: VersionState = {
   versions: [],
   selectedVersion: null,
   selectedTags: [],
+  autoSave: true,
   aiConfig: {
     model: 'gpt-3.5-turbo',
     temperature: 0.7
@@ -125,6 +127,22 @@ export const useVersionStore = create<EditorState & VersionState>((set, get) => 
   removeTag: (tag: string) => {
     set((state) => ({
       selectedTags: state.selectedTags.filter(t => t !== tag)
+    }));
+  },
+
+  // Auto save
+  autoSave: initialState.autoSave,
+  autoSaveContent: (content: string) => {
+    if (!get().autoSave) return;
+    const version: Version = {
+      id: Date.now().toString(),
+      title: '自动保存',
+      content,
+      timestamp: Date.now(),
+      tags: ['auto-save']
+    };
+    set((state) => ({
+      versions: [...state.versions, version]
     }));
   },
 

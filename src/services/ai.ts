@@ -1,3 +1,12 @@
+import { AIContext } from './ai/context';
+import { generatePrompt } from './ai/prompts/manager';
+
+interface AICompletionOptions {
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
 export interface AIContext {
   text: string;
   selection?: {
@@ -7,9 +16,15 @@ export interface AIContext {
   };
 }
 
-export async function getAICompletion(promptId: string, context: AIContext): Promise<string> {
-  // 简化为同步返回，后续实现真实的AI调用
-  return '示例回复';
+export async function getAICompletion(promptId: string, context: AIContext, options: AICompletionOptions = {}): Promise<string> {
+  try {
+    const prompt = generatePrompt(promptId, context);
+    // TODO: 实现 AI 补全逻辑
+    return '这是一个测试回复';
+  } catch (error) {
+    console.error('AI 补全失败:', error);
+    throw error;
+  }
 }
 
 export function stopAICompletion() {

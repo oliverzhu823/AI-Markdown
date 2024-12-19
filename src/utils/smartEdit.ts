@@ -359,3 +359,45 @@ export function shouldTriggerSuggestions(
   
   return lastWord ? triggerWords.some(word => lastWord.endsWith(word)) : false;
 }
+
+// 智能编辑工具
+interface SmartEditResult {
+  text: string;
+  error?: string;
+}
+
+interface SmartEditContext {
+  text: string;
+  selection?: {
+    start: number;
+    end: number;
+    text: string;
+  };
+}
+
+export async function improveText(context: SmartEditContext): Promise<SmartEditResult> {
+  try {
+    const response = await getAICompletion('improve', context);
+    return { text: response };
+  } catch (error) {
+    return { text: '', error: error instanceof Error ? error.message : '改进文本失败' };
+  }
+}
+
+export async function explainText(context: SmartEditContext): Promise<SmartEditResult> {
+  try {
+    const response = await getAICompletion('explain', context);
+    return { text: response };
+  } catch (error) {
+    return { text: '', error: error instanceof Error ? error.message : '解释内容失败' };
+  }
+}
+
+export async function continueWriting(context: SmartEditContext): Promise<SmartEditResult> {
+  try {
+    const response = await getAICompletion('continue', context);
+    return { text: response };
+  } catch (error) {
+    return { text: '', error: error instanceof Error ? error.message : '继续写作失败' };
+  }
+}

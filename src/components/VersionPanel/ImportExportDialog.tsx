@@ -15,6 +15,7 @@ const ImportExportDialog: React.FC<ImportExportDialogProps> = ({
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string>('');
   const { versions, importVersions } = useVersionStore();
+  const [importData, setImportData] = useState('');
 
   const handleExportAll = () => {
     const dataStr = JSON.stringify(versions, null, 2);
@@ -52,6 +53,17 @@ const ImportExportDialog: React.FC<ImportExportDialogProps> = ({
     reader.readAsText(file);
   };
 
+  const handleImportData = () => {
+    try {
+      const data = JSON.parse(importData);
+      importVersions(data);
+      onClose();
+    } catch (error) {
+      console.error('导入失败:', error);
+      alert('导入失败，请检查数据格式是否正确');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -85,6 +97,20 @@ const ImportExportDialog: React.FC<ImportExportDialogProps> = ({
               <FaFileImport />
               {importing ? '导入中...' : '选择文件导入'}
             </label>
+            <textarea
+              value={importData}
+              onChange={e => setImportData(e.target.value)}
+              placeholder="粘贴JSON数据..."
+              className="w-full p-2 border border-gray-300 rounded"
+            />
+            <button
+              onClick={handleImportData}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2
+                       bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              <FaFileImport />
+              导入
+            </button>
             {error && (
               <div className="text-red-500 text-sm mt-1">{error}</div>
             )}

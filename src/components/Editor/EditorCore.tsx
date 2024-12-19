@@ -1,46 +1,57 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useVersionStore } from '@/store';
-import { TextRange, getSelectionRange, setSelectionRange } from '@/utils/editorUtils';
+import { TextRange } from '@/utils/editorUtils';
 
 interface EditorCoreProps {
-  onAITrigger: () => void;
-  onSelectionChange?: (selection: TextRange | undefined) => void;
+  onSelectionChange?: (range: TextRange | null) => void;
+  onAITrigger?: () => void;
 }
 
-export default function EditorCore({ onAITrigger, onSelectionChange }: EditorCoreProps) {
-  const { content, setContent, updateContent } = useVersionStore();
-  const editorRef = React.useRef<HTMLTextAreaElement>(null);
+export function EditorCore({ onSelectionChange, onAITrigger }: EditorCoreProps) {
+  const { content, setContent } = useVersionStore();
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleSelectionChange = () => {
+      if (!editor) return;
+
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+
+      if (start === end) {
+        onSelectionChange?.(null);
+        return;
+      }
+
+      onSelectionChange?.({
+        start,
+        end,
+        text: editor.value.substring(start, end)
+      });
+    };
+
+    editor.addEventListener('select', handleSelectionChange);
+    editor.addEventListener('keyup', handleSelectionChange);
+    editor.addEventListener('click', handleSelectionChange);
+
+    return () => {
+      editor.removeEventListener('select', handleSelectionChange);
+      editor.removeEventListener('keyup', handleSelectionChange);
+      editor.removeEventListener('click', handleSelectionChange);
+    };
+  }, [onSelectionChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
-    updateContent(newContent);
-  };
-
-  const handleSelect = () => {
-    if (!editorRef.current) return;
-    const selection = getSelectionRange(editorRef.current);
-    onSelectionChange?.(selection);
+    setContent(e.target.value);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 处理AI触发
-    if (e.key === ' ' && e.ctrlKey) {
+    if (e.key === ' ' && e.ctrlKey && onAITrigger) {
       e.preventDefault();
       onAITrigger();
-      return;
-    }
-
-    // 处理Tab键
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = editorRef.current!.selectionStart;
-      const end = editorRef.current!.selectionEnd;
-      const value = editorRef.current!.value;
-      const newValue = value.substring(0, start) + '  ' + value.substring(end);
-      editorRef.current!.value = newValue;
-      editorRef.current!.selectionStart = editorRef.current!.selectionEnd = start + 2;
-      handleChange({ target: { value: newValue } } as React.ChangeEvent<HTMLTextAreaElement>);
     }
   };
 
@@ -54,7 +65,6 @@ export default function EditorCore({ onAITrigger, onSelectionChange }: EditorCor
         value={content}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onSelect={handleSelect}
         placeholder="开始写作..."
       />
     </div>

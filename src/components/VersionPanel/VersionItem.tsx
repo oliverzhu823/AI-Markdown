@@ -6,13 +6,22 @@ import { format } from 'date-fns';
 import { MdHistory, MdCompareArrows, MdCheck } from 'react-icons/md';
 import DiffDialog from './DiffDialog';
 
-interface VersionItemProps {
-  version: any;
-  isSelected?: boolean;
-  onSelect: () => void;
+interface Version {
+  id: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  tags: string[];
 }
 
-export function VersionItem({ version, isSelected, onSelect }: VersionItemProps) {
+interface VersionItemProps {
+  version: Version;
+  isSelected?: boolean;
+  onSelect: () => void;
+  onShowDiff: () => void;
+}
+
+export function VersionItem({ version, isSelected, onSelect, onShowDiff }: VersionItemProps) {
   const [showDiff, setShowDiff] = useState(false);
   const { currentVersion, loadVersion } = useVersionStore();
 

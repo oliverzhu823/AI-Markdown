@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useVersionStore } from '@/store';
 import { TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -9,6 +9,7 @@ interface Tag {
 
 export function TagFilter() {
   const { versions, selectedTags = [], addTag, removeTag } = useVersionStore();
+  const [newTag, setNewTag] = useState('');
 
   // 从所有版本中收集唯一的标签
   const allTags = React.useMemo(() => {
@@ -25,6 +26,17 @@ export function TagFilter() {
     } else {
       addTag(tag);
     }
+  };
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newTag.trim()) {
+      addTag(newTag.trim());
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    removeTag(tag);
   };
 
   return (
@@ -51,6 +63,24 @@ export function TagFilter() {
             )}
           </button>
         ))}
+      </div>
+      <div className="tag-filter">
+        <div className="selected-tags">
+          {selectedTags.map(tag => (
+            <div key={tag} className="tag">
+              <span>{tag}</span>
+              <button onClick={() => handleRemoveTag(tag)}>×</button>
+            </div>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          value={newTag}
+          onChange={e => setNewTag(e.target.value)}
+          onKeyDown={handleAddTag}
+          placeholder="添加标签过滤..."
+        />
       </div>
     </div>
   );
